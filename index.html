@@ -515,13 +515,13 @@ a:focus-visible, button:focus-visible{
 }
 .content-body{
   font-family:var(--font-display);
-  font-size:24px;
-  line-height:1.5;
+  font-size:clamp(17px, 4.6vw, 20px);
+  line-height:1.45;
   color:rgba(251,247,238,.92);
   text-shadow:0 1px 10px rgba(0,0,0,.45);
   text-align:left;
 }
-.content-body p{ margin:0 0 1em 0; }
+.content-body p{ margin:0 0 .8em 0; }
 .content-body em{ font-style:italic; color:var(--gold-soft); }
 .content-sign{
   margin-top:22px;
@@ -604,9 +604,9 @@ a:focus-visible, button:focus-visible{
 .schedule-timeline{ text-align:left; }
 .schedule-item{
   display:grid;
-  grid-template-columns:1fr 42px 1fr;
+  grid-template-columns:1fr 34px 1fr;
   align-items:center;
-  min-height:108px;
+  min-height:94px;
 }
 .schedule-node-col{
   grid-column:2;
@@ -626,7 +626,7 @@ a:focus-visible, button:focus-visible{
 .schedule-item:first-child .schedule-node-col::before{ top:50%; }
 .schedule-item:last-child .schedule-node-col::before{ bottom:50%; }
 .schedule-node{
-  width:38px; height:38px;
+  width:32px; height:32px;
   border-radius:50%;
   border:1px solid rgba(201,162,100,.55);
   background:var(--walnut-deep);
@@ -641,35 +641,37 @@ a:focus-visible, button:focus-visible{
   flex-direction:column;
   min-width:0;
 }
-.schedule-left .schedule-content:first-child{ align-items:flex-end; text-align:right; padding-right:12px; }
-.schedule-right .schedule-content:last-child{ align-items:flex-start; text-align:left; padding-left:12px; }
+.schedule-left .schedule-content:first-child{ align-items:flex-end; text-align:right; padding-right:8px; }
+.schedule-right .schedule-content:last-child{ align-items:flex-start; text-align:left; padding-left:8px; }
 .schedule-time{
   display:inline-block;
+  max-width:100%;
   background:rgba(20,13,8,.55);
   border:1px solid rgba(201,162,100,.4);
   color:var(--paper);
   font-family:var(--font-body);
-  font-size:16.5px;
+  font-size:clamp(10.5px, 3.4vw, 13.5px);
   font-weight:600;
-  letter-spacing:.01em;
-  padding:8px 15px;
+  letter-spacing:0;
+  padding:6px 10px;
   border-radius:999px;
-  margin-bottom:9px;
+  margin-bottom:8px;
   white-space:nowrap;
 }
 .schedule-label{
   font-family:var(--font-display);
   font-weight:500;
-  font-size:27px;
+  font-size:clamp(18px, 5.6vw, 23px);
+  line-height:1.15;
   color:var(--paper);
   text-shadow:0 1px 8px rgba(0,0,0,.5);
 }
 .schedule-cal{
   font-family:var(--font-body);
-  font-size:15px;
+  font-size:clamp(10.5px, 3vw, 12.5px);
   color:var(--gold-soft);
   text-decoration:none;
-  margin-top:7px;
+  margin-top:6px;
   opacity:.85;
 }
 .schedule-cal:hover{ opacity:1; text-decoration:underline; }
@@ -704,46 +706,46 @@ a:focus-visible, button:focus-visible{
   max-width:460px;
 }
 .venues-title{
-  font-size:clamp(30px, 8vw, 38px);
-  margin:10px 0 22px 0;
+  font-size:clamp(28px, 7.6vw, 34px);
+  margin:10px 0 16px 0;
 }
 .venues-list{
   display:flex;
   flex-direction:column;
-  gap:14px;
+  gap:11px;
 }
 .venue-card{
   border:1px solid rgba(201,162,100,.32);
   border-radius:10px;
   background:rgba(20,13,8,.3);
-  padding:18px 20px;
+  padding:14px 16px;
 }
 .venue-icon{
-  width:32px; height:32px;
+  width:28px; height:28px;
   border-radius:50%;
   border:1px solid rgba(201,162,100,.5);
   color:var(--gold-soft);
   display:flex;
   align-items:center;
   justify-content:center;
-  margin-bottom:10px;
+  margin-bottom:8px;
 }
 .venue-name{
   font-family:var(--font-display);
   font-weight:500;
-  font-size:clamp(20px, 5.6vw, 23px);
+  font-size:clamp(18px, 5.2vw, 21px);
   line-height:1.2;
   color:var(--paper);
   text-shadow:0 3px 18px rgba(0,0,0,.55);
-  margin:0 0 5px 0;
+  margin:0 0 4px 0;
 }
 .venue-address{
   font-family:var(--font-body);
-  font-size:16px;
+  font-size:clamp(13px, 3.7vw, 14.5px);
   color:rgba(251,247,238,.78);
   text-shadow:0 1px 8px rgba(0,0,0,.5);
-  line-height:1.5;
-  margin-bottom:16px;
+  line-height:1.4;
+  margin-bottom:12px;
 }
 
 /* ============================================================
@@ -1561,16 +1563,55 @@ a:focus-visible, button:focus-visible{
     window.addEventListener("resize", onScroll);
   }
 
+  // Drives window.scrollTo() itself, frame by frame, from wherever
+  // the page currently is to targetY over durationMs — used so the
+  // door-open + camera-push + arrival at the Invitation page plays
+  // automatically after the tap, without the guest needing to
+  // scroll through it manually. Because this moves the REAL scroll
+  // position (not a fake overlay animation), it drives the exact
+  // same rendering everything else already reads from — camera,
+  // doors, content blocks — so it stays perfectly in sync and stays
+  // reversible. A guest who starts scrolling/swiping/pressing a key
+  // mid-flight immediately takes back manual control instead of the
+  // page fighting their input.
+  var autoScrollRafId = null;
+  function cancelAutoScroll(){
+    if(autoScrollRafId !== null){ cancelAnimationFrame(autoScrollRafId); autoScrollRafId = null; }
+    ["wheel", "touchstart", "keydown"].forEach(function(evt){
+      window.removeEventListener(evt, cancelAutoScroll);
+    });
+  }
+  function autoScrollTo(targetY, durationMs, onDone){
+    var startY = window.scrollY;
+    var startTime = null;
+    ["wheel", "touchstart", "keydown"].forEach(function(evt){
+      window.addEventListener(evt, cancelAutoScroll, { passive:true });
+    });
+    function step(now){
+      if(startTime === null){ startTime = now; }
+      var t = Math.min(1, (now - startTime) / durationMs);
+      window.scrollTo(0, startY + (targetY - startY) * easeInOutCubic(t));
+      if(t < 1){
+        autoScrollRafId = requestAnimationFrame(step);
+      } else {
+        cancelAutoScroll();
+        if(onDone){ onDone(); }
+      }
+    }
+    autoScrollRafId = requestAnimationFrame(step);
+  }
+
   // Before tapping, the guest sees only the closed doors + the CTA;
   // scrolling is locked so nothing can be scrubbed early. Tapping:
-  //   1. opens the doors — a one-shot reveal, not scroll-linked
-  //   2. fades out the CTA
-  //   3. unlocks scrolling
-  //   4. reveals the "scroll to continue" affordance a beat later,
-  //      once the doors are visibly underway
-  // From here on, scroll position alone drives the camera push and
-  // every content block that follows (smoothed + eased for anyone
-  // without prefers-reduced-motion set).
+  //   1. fades out the CTA, unlocks scrolling
+  //   2. auto-plays the door-open + camera-push, landing right where
+  //      the Invitation block has fully settled into view
+  //   3. reveals the "scroll to continue" affordance once that
+  //      auto-play finishes, handing control to the guest from there
+  // From here on (or immediately, if the auto-play gets interrupted),
+  // scroll position alone drives the camera push and every content
+  // block that follows (smoothed + eased for anyone without
+  // prefers-reduced-motion set).
   // Locking overflow on <body> alone is known to leak on iOS Safari
   // (touch-drag can still rubber-band/scroll the page underneath) —
   // locking <html> too closes that gap without needing position:fixed
@@ -1594,17 +1635,22 @@ a:focus-visible, button:focus-visible{
       return;
     }
 
-    window.setTimeout(function(){
-      if(scrollHintEl){ scrollHintEl.classList.add("show"); }
-    }, 500);
-
     startSmoothLoop();
-    // Nudge the scroll forward so the doors visibly swing open right
-    // away instead of sitting closed until the guest scrolls on
-    // their own — driven through the same scroll position everything
-    // else reads, so it's still a real, reversible scroll position,
-    // not a fake pre-animation.
-    window.scrollTo({ top: vhToPx(LOCKED_SCROLL_VH * DOOR_OPEN_CAM_T), behavior: "smooth" });
+
+    // Where the Invitation block (the first STAGE_BLOCKS entry)
+    // finishes rising into full view — same TRANSITION_RATIO math
+    // buildStageTimelines() uses, just evaluated once up front rather
+    // than exposed from inside that function.
+    var invitationSpanW = 1 / STAGE_BLOCKS.length;
+    var invitationSettledT = Math.min(1, (invitationSpanW * TRANSITION_RATIO) / 2);
+    var lockedPx = vhToPx(LOCKED_SCROLL_VH);
+    var overlapPx = vhToPx(CONTENT_OVERLAP_VH);
+    var contentPx = vhToPx(CONTENT_SCROLL_VH);
+    var invitationSettledY = (lockedPx - overlapPx) + invitationSettledT * contentPx;
+
+    autoScrollTo(invitationSettledY, 3600, function(){
+      if(scrollHintEl){ scrollHintEl.classList.add("show"); }
+    });
   }
   tapBtn.addEventListener("click", beginJourney);
   tapBtn.addEventListener("keydown", function(e){
