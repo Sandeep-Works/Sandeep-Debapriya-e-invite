@@ -189,13 +189,13 @@ a:focus-visible, button:focus-visible{
      handoff — see SECTION_VH in the script). Grows automatically as
      STAGE_BLOCKS gains entries; only this number needs updating here
      to match (CSS can't read the JS constant directly).
-     CONTENT_OVERLAP_VH (45) is subtracted once here because the
-     content phase begins 45vh BEFORE the camera shot finishes — the
-     first content block starts peeking up while the camera is still
-     finishing its push, rather than waiting for the zoom to fully
-     settle. +100vh for the viewport itself.
-     Total: 190 − 45 + 600 + 100 = 845vh. */
-  height:845vh;
+     CONTENT_OVERLAP_VH (85) is subtracted once here because the
+     content phase begins 85vh BEFORE the camera shot finishes — the
+     Invitation starts rising into view well before the camera has
+     finished its push, overlapping with it rather than waiting for
+     the zoom to fully settle. +100vh for the viewport itself.
+     Total: 190 − 85 + 600 + 100 = 805vh. */
+  height:805vh;
   background:var(--walnut-deep);
 }
 .cinematic-sticky{
@@ -1316,20 +1316,26 @@ a:focus-visible, button:focus-visible{
   function rangeT(p, start, end){ return easeInOutCubic(clamp01((p - start) / (end - start))); }
 
   // DOOR_OPEN_CAM_T: the doors finish swinging open by this fraction
-  // of the camera-push range (camP) — a small slice right at the
-  // start, before the camera itself really gets moving. Driven
-  // continuously by scroll like everything else here, so scrolling
-  // back up past this point closes the doors again just as smoothly
-  // as they opened — nothing about it is a one-shot, un-reversible
-  // animation anymore.
-  var DOOR_OPEN_CAM_T = 0.25;
+  // of the camera-push range (camP). Sized so that, against the ~5.5s
+  // single continuous auto-scroll in beginJourney() below, the doors
+  // finish opening at roughly the 1.5-2s mark — a real, visible beat
+  // of its own, WHILE the camera is already simultaneously pushing
+  // in (camT is just camP/0.85, computed every frame regardless of
+  // door state — nothing here waits for the door to finish before
+  // the camera "starts"). Still driven continuously by scroll (not a
+  // one-shot), so scrolling back up past this point closes the doors
+  // again just as it opened them.
+  var DOOR_OPEN_CAM_T = 0.29;
 
   // Scroll-driven, every frame: swings both door leaves open across
   // the first DOOR_OPEN_CAM_T of camP, then holds fully open for the
-  // rest of the camera push. Reverses cleanly on scroll-up because
+  // rest of the camera push. LINEAR on purpose (not rangeT, which
+  // eases) — this window is already tiny, and an eased zero-velocity
+  // start on top of that would reintroduce a perceptible delay before
+  // any motion shows at all. Reverses cleanly on scroll-up because
   // it's a pure function of camP, same as the camera zoom below it.
   function applyDoorRotation(camP){
-    var doorT = rangeT(camP, 0, DOOR_OPEN_CAM_T);
+    var doorT = clamp01(camP / DOOR_OPEN_CAM_T);
     var z = lerp(0, 5, doorT);
     leafLeftEl.style.transform  = "translateZ(" + z + "px) rotateY(" + lerp(0, -100, doorT) + "deg) translateX(" + lerp(0, -3, doorT) + "%)";
     leafRightEl.style.transform = "translateZ(" + z + "px) rotateY(" + lerp(0, 100, doorT)  + "deg) translateX(" + lerp(0, 3, doorT)  + "%)";
@@ -1342,11 +1348,37 @@ a:focus-visible, button:focus-visible{
   // separately since they now run on independent (and independently-
   // smoothed) timings — contentP is currently unused here but kept
   // in the signature to match how it's called from both render paths.
+  // CAM_PERSPECTIVE must match .stage{perspective:1200px} in the
+  // CSS — it's the reference distance CSS 3D transforms use to turn
+  // a translateZ() value into an apparent scale: scale = P/(P-z).
+  // That relationship is NOT linear in z, so a plain lerp(0,520,camT)
+  // — even with camT itself progressing at a perfectly constant rate
+  // — still LOOKS like it's accelerating into the second half, purely
+  // from the perspective math, not from any easing curve. camZForT()
+  // inverts that formula so the APPARENT zoom scale (not the raw z
+  // value) is what moves at a constant rate.
+  var CAM_PERSPECTIVE = 1200;
+  // Reduced from 520 — at 520, the apparent scale grows to ~1.76x by
+  // the end (P/(P-z)), which is a big, aggressive push-in to cover in
+  // a uniformly-paced few seconds; timing was already even across
+  // the whole sequence, so the zoom itself (not its pacing) was what
+  // read as fast. 380 caps it at a gentler ~1.46x.
+  var CAM_MAX_Z = 380;
+  function camZForT(camT){
+    var maxScale = CAM_PERSPECTIVE / (CAM_PERSPECTIVE - CAM_MAX_Z);
+    var scale = lerp(1, maxScale, camT);
+    return CAM_PERSPECTIVE * (1 - 1 / scale);
+  }
+
   function applyProgress(camP, contentP){
     applyDoorRotation(camP);
 
-    var camT = rangeT(camP, 0, 0.85);
-    sceneEl.style.transform = "translateZ(" + lerp(0, 520, camT) + "px)";
+    // LINEAR, not rangeT — camP itself already progresses at a
+    // constant rate during the auto-scroll (see autoScrollTo), so a
+    // plain ratio here keeps the zoom's pace uniform across its full
+    // duration rather than easing (slow-fast-slow) on top of that.
+    var camT = clamp01(camP / 0.85);
+    sceneEl.style.transform = "translateZ(" + camZForT(camT) + "px)";
   }
 
   // Content blocks — declared up front (before the scroll-distance
@@ -1393,14 +1425,19 @@ a:focus-visible, button:focus-visible{
   // number of blocks.
   //
   // CONTENT_OVERLAP_VH makes the content phase begin this many vh
-  // BEFORE the camera-push distance is fully consumed — so the first
-  // content block is already peeking up from below while the camera
-  // is still finishing its push toward Ganesh ji, instead of waiting
-  // for the zoom to fully settle first.
+  // BEFORE the camera-push distance is fully consumed — so the
+  // Invitation is already rising into view well before the camera
+  // finishes its push toward Ganesh ji, overlapping with it rather
+  // than waiting for the zoom to fully settle first. Large on purpose
+  // (see beginJourney() below): combined with the wider
+  // INVITATION_ENTRANCE_VH, the Invitation starts appearing roughly
+  // two-thirds of the way through the initial auto-scroll, while the
+  // camera still has visible motion left — not just in its last
+  // sliver.
   var LOCKED_SCROLL_VH = 190;
   var SECTION_VH = 100;
   var CONTENT_SCROLL_VH = STAGE_BLOCKS.length * SECTION_VH;
-  var CONTENT_OVERLAP_VH = 45;
+  var CONTENT_OVERLAP_VH = 85;
   function vhToPx(vh){ return vh * window.innerHeight / 100; }
 
   function currentProgress(){
@@ -1493,6 +1530,18 @@ a:focus-visible, button:focus-visible{
   var TRANSITION_RATIO = 0.7;
   var PEEK_EASE_RATIO  = 0.18; // how much of that pause eases from hidden into the "up next" peek, right at its start
 
+  // INVITATION_ENTRANCE_VH: how many vh of the content-scroll range
+  // the very FIRST block (Invitation) takes to rise fully into view —
+  // deliberately much wider than every other block's entrance (which
+  // uses the shared TRANSITION_RATIO/spanW formula below), so it
+  // starts emerging while the camera is still visibly pushing in,
+  // rather than only appearing in the last sliver of the initial
+  // reveal. beginJourney() below reuses this exact number to compute
+  // where the auto-played intro should land, so the two stay in
+  // sync. Every block AFTER the first is untouched.
+  var INVITATION_ENTRANCE_VH = 60;
+  var INVITATION_ENTRANCE_T  = Math.min(1, INVITATION_ENTRANCE_VH / CONTENT_SCROLL_VH);
+
   function buildStageTimelines(blocks){
     // every block gets an equal, fixed-width share of the range —
     // see SECTION_VH above for why (consistent scroll-per-section
@@ -1509,8 +1558,12 @@ a:focus-visible, button:focus-visible{
     // synthetic ones at the very start/end), straddling it. Reused
     // below as the ENTRANCE of the block after it and the EXIT of
     // the block before it — the same interval, never computed twice.
-    var transitions = bounds.map(function(bd){
-      return { from: Math.max(0, bd.start - half), to: Math.min(1, bd.start + half) };
+    // The very first boundary (Invitation's own entrance) uses the
+    // wider INVITATION_ENTRANCE_T instead of the shared half-width —
+    // see INVITATION_ENTRANCE_VH above.
+    var transitions = bounds.map(function(bd, i){
+      var h = (i === 0) ? INVITATION_ENTRANCE_T : half;
+      return { from: Math.max(0, bd.start - h), to: Math.min(1, bd.start + h) };
     });
 
     return blocks.map(function(b, i){
@@ -1580,6 +1633,14 @@ a:focus-visible, button:focus-visible{
       var of = interpAt(tl.oKeys, p, ['o']);
       el.style.transform = "translateY(calc(-50% + " + yf.y + "vh)) scale(" + yf.s + ")";
       el.style.opacity = String(of.o);
+      // .stage-block never disables pointer-events by default, so a
+      // block sitting off-screen or mid-peek at low opacity (e.g. the
+      // next section, about to rise into view) stays fully clickable
+      // — if any of ITS elements land on the same screen position as
+      // a button/link in the block that's actually meant to be
+      // visible, it silently swallows the tap. Only the
+      // substantially-visible block should be interactive.
+      el.style.pointerEvents = of.o > 0.5 ? "auto" : "none";
     }
 
     // the Ganesha image itself never moves; this one overlay fades in
@@ -1684,7 +1745,16 @@ a:focus-visible, button:focus-visible{
     stopAutoScrollListeners();
     handOffToSmoothLoop();
   }
-  function autoScrollTo(targetY, durationMs, onDone){
+  // deferHandoff: true when this call is one beat in a CHAIN of
+  // auto-scrolls (see beginJourney() below, door-open phase then
+  // camera-push phase) — skips starting the manual-scroll smoothing
+  // loop at the end of this beat specifically, since another
+  // autoScrollTo() is about to take over immediately and running the
+  // smooth loop concurrently with it would fight over the same
+  // frame's rendering. The FINAL beat in a chain always hands off
+  // normally. Interrupting mid-chain (cancelAutoScroll) always hands
+  // off immediately regardless — the guest taking over always wins.
+  function autoScrollTo(targetY, durationMs, onDone, deferHandoff){
     var startY = window.scrollY;
     var startTime = null;
     ["wheel", "touchstart", "keydown"].forEach(function(evt){
@@ -1709,7 +1779,7 @@ a:focus-visible, button:focus-visible{
       } else {
         autoScrollRafId = null;
         stopAutoScrollListeners();
-        handOffToSmoothLoop();
+        if(!deferHandoff){ handOffToSmoothLoop(); }
         if(onDone){ onDone(); }
       }
     }
@@ -1749,26 +1819,32 @@ a:focus-visible, button:focus-visible{
       return;
     }
 
-    // The smoothing loop starts itself once autoScrollTo() below
-    // hands off (finishes or gets interrupted) — see
-    // handOffToSmoothLoop(). Starting it here too would run it
-    // concurrently with the directly-driven auto-scroll render.
+    // The smoothing loop starts itself once autoScrollTo below hands
+    // off (finishes or gets interrupted) — see handOffToSmoothLoop().
+    // Starting it any earlier would run it concurrently with the
+    // directly-driven auto-scroll render below.
 
     // Where the Invitation block (the first STAGE_BLOCKS entry)
-    // finishes rising into full view — same TRANSITION_RATIO math
-    // buildStageTimelines() uses, just evaluated once up front rather
-    // than exposed from inside that function.
-    var invitationSpanW = 1 / STAGE_BLOCKS.length;
-    var invitationSettledT = Math.min(1, (invitationSpanW * TRANSITION_RATIO) / 2);
+    // finishes rising into full view — uses INVITATION_ENTRANCE_T
+    // (see its definition above buildStageTimelines), the exact same
+    // number that function uses for this block's own entrance, so
+    // this always lands precisely where Invitation visually settles.
     var lockedPx = vhToPx(LOCKED_SCROLL_VH);
     var overlapPx = vhToPx(CONTENT_OVERLAP_VH);
     var contentPx = vhToPx(CONTENT_SCROLL_VH);
-    var invitationSettledY = (lockedPx - overlapPx) + invitationSettledT * contentPx;
+    var invitationSettledY = (lockedPx - overlapPx) + INVITATION_ENTRANCE_T * contentPx;
 
-    // ~2.5s, eased in/out (see easeInOutCubic inside autoScrollTo) —
-    // slow enough to actually read as door-opens-then-camera-pushes-in,
-    // not just a blink between two states.
-    autoScrollTo(invitationSettledY, 2500);
+    // ONE continuous auto-scroll at a SINGLE uniform rate for the
+    // entire 4s, start to finish — door opening, camera zoom, and the
+    // Invitation's reveal are all just different functions of this
+    // same continuously-increasing scroll position (see
+    // applyDoorRotation/applyProgress/renderStage), so nothing here
+    // waits on anything else, and no segment moves at a different
+    // speed than any other. autoScrollTo's own position curve is
+    // linear (not eased), so there's no soft-start ramp either —
+    // motion begins at full pace on the very first rendered frame
+    // after the tap, not a beat later.
+    autoScrollTo(invitationSettledY, 4000);
   }
   tapBtn.addEventListener("click", beginJourney);
   tapBtn.addEventListener("keydown", function(e){
@@ -1853,7 +1929,7 @@ a:focus-visible, button:focus-visible{
      the on-page thank-you/sorry message still shows either way,
      since we send this "fire and forget" (see reasoning below).
   ============================================================ */
-  var RSVP_ENDPOINT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+  var RSVP_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbw49-RViZ0OFF7pkfnk_IieZzVGDKQaKb03NPjXQ6fnzcWHudN9S8lcxT0Eg05Jjj1f/exec";
   var RSVP_STORAGE_KEY = "wedding-rsvp-response";
 
   var rsvpOpenBtn = document.getElementById("rsvp-open-btn");
