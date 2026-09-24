@@ -1693,13 +1693,15 @@ a:focus-visible, button:focus-visible{
     function step(now){
       if(startTime === null){ startTime = now; }
       var t = Math.min(1, (now - startTime) / durationMs);
-      window.scrollTo(0, startY + (targetY - startY) * easeInOutCubic(t));
-      // Rendered directly from raw scroll progress every frame, with
-      // NO smoothing lag layered on top — easeInOutCubic above is
-      // already the intended easing curve for this sequence. Running
-      // the organic smoothCam lag on top of an already-eased curve
-      // compounds into a visible stall right after the tap, then a
-      // rushed catch-up — the bug this replaces.
+      // LINEAR, deliberately — camera zoom, door rotation, and block
+      // entrances all already shape their own motion from camP/contentP
+      // via rangeT()/interpAt() (which apply easeInOutCubic internally).
+      // Easing this raw scroll position too, on top of that, compounds
+      // into two zero-velocity starts stacked back to back — a visible
+      // stall right after the tap, then a rush to catch up within the
+      // fixed duration. Feeding it a plain linear ramp means every
+      // element's own easing is the only shaping applied, once.
+      window.scrollTo(0, startY + (targetY - startY) * t);
       applyProgress(currentProgress(), contentProgress());
       renderStage(contentProgress());
       if(t < 1){
