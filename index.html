@@ -752,11 +752,6 @@ a:focus-visible, button:focus-visible{
   25%{ transform:translateX(-6px); }
   75%{ transform:translateX(6px); }
 }
-.rsvp-actions{
-  display:flex;
-  flex-direction:column;
-  gap:14px;
-}
 .rsvp-btn{
   font-family:var(--font-body);
   font-size:15px;
@@ -778,14 +773,98 @@ a:focus-visible, button:focus-visible{
   color:var(--walnut-deep);
 }
 .rsvp-btn-yes:hover{ background:#b8863f; }
-.rsvp-btn-yes.selected{ border-color:var(--paper); box-shadow:0 0 0 3px rgba(201,162,100,.35); }
-.rsvp-btn-no{
+.rsvp-open-btn{ width:100%; max-width:260px; margin:0 auto; }
+
+/* ---- RSVP bottom sheet ---- */
+.rsvp-sheet-backdrop{
+  position:fixed;
+  inset:0;
+  z-index:100;
+  background:rgba(10,6,2,.6);
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .35s var(--ease);
+}
+.rsvp-sheet-backdrop.show{ opacity:1; pointer-events:auto; }
+.rsvp-sheet{
+  position:fixed;
+  left:0; right:0; bottom:0;
+  z-index:101;
+  max-width:520px;
+  margin:0 auto;
+  background:var(--walnut-deep);
+  border:1px solid rgba(201,162,100,.35);
+  border-bottom:none;
+  border-radius:22px 22px 0 0;
+  padding:14px 24px calc(28px + env(safe-area-inset-bottom, 0px));
+  max-height:88svh;
+  overflow-y:auto;
+  transform:translateY(100%);
+  transition:transform .4s var(--ease);
+  box-shadow:0 -20px 60px rgba(0,0,0,.5);
+}
+.rsvp-sheet.show{ transform:translateY(0); }
+.rsvp-sheet-handle{
+  width:38px; height:4px;
+  border-radius:999px;
+  background:rgba(201,162,100,.4);
+  margin:0 auto 18px;
+}
+.rsvp-sheet-close{
+  position:absolute;
+  top:16px; right:16px;
+  width:32px; height:32px;
+  border-radius:50%;
+  background:rgba(201,162,100,.12);
+  border:1px solid rgba(201,162,100,.35);
+  color:var(--paper);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  cursor:pointer;
+}
+.rsvp-sheet-title{
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:26px;
+  color:var(--paper);
+  text-align:center;
+  margin:0 0 22px 0;
+}
+.rsvp-label{
+  font-family:var(--font-body);
+  font-size:13px;
+  color:rgba(251,247,238,.75);
+  margin-bottom:10px;
+}
+.rsvp-choice-group{
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.rsvp-choice-btn{
+  font-family:var(--font-body);
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:.02em;
+  padding:14px 18px;
+  border-radius:999px;
+  cursor:pointer;
   background:transparent;
   border:1px solid rgba(201,162,100,.45);
   color:var(--paper);
+  transition:background .25s var(--ease), border-color .25s var(--ease), color .25s var(--ease), transform .2s var(--ease);
 }
-.rsvp-btn-no:hover{ background:rgba(201,162,100,.12); }
-.rsvp-btn-no.selected{ border-color:var(--paper); background:rgba(201,162,100,.18); box-shadow:0 0 0 3px rgba(201,162,100,.25); }
+.rsvp-choice-btn:active{ transform:scale(.97); }
+.rsvp-choice-btn.selected{
+  background:var(--gold);
+  border-color:var(--gold);
+  color:var(--walnut-deep);
+}
+.rsvp-guests-input{ text-align:center; }
+#rsvp-guests-field{ display:none; }
 .rsvp-banner{
   margin-top:20px;
   font-family:var(--font-body);
@@ -1047,13 +1126,7 @@ a:focus-visible, button:focus-visible{
       <!-- RSVP -->
       <div class="stage-block stage-block-rsvp" id="block-rsvp">
         <h2 class="content-title rsvp-title">We&rsquo;d love to celebrate with you, let us know.</h2>
-        <div class="rsvp-field">
-          <input type="text" id="rsvp-name" class="rsvp-name-input" placeholder="Your name" autocomplete="name">
-        </div>
-        <div class="rsvp-actions">
-          <button type="button" class="rsvp-btn rsvp-btn-yes" id="rsvp-yes">Yes, I&rsquo;ll be there</button>
-          <button type="button" class="rsvp-btn rsvp-btn-no" id="rsvp-no">Sorry, I can&rsquo;t make it</button>
-        </div>
+        <button type="button" class="rsvp-btn rsvp-btn-yes rsvp-open-btn" id="rsvp-open-btn">RSVP</button>
         <div class="rsvp-banner" id="rsvp-banner" role="status" aria-live="polite"></div>
         <div class="schedule-rule rsvp-closing-rule" aria-hidden="true"><span>&#10022;</span></div>
       </div>
@@ -1061,7 +1134,40 @@ a:focus-visible, button:focus-visible{
   </section>
 </main>
 
+<!-- ============================================================
+     RSVP BOTTOM SHEET — opened by the RSVP button in the RSVP
+     stage-block above. Lives outside #cinematic entirely so its
+     position:fixed is relative to the real viewport, not the pinned
+     stage (which has a perspective-bearing ancestor that would
+     otherwise hijack it).
+============================================================ -->
+<div class="rsvp-sheet-backdrop" id="rsvp-sheet-backdrop"></div>
+<div class="rsvp-sheet" id="rsvp-sheet" role="dialog" aria-modal="true" aria-labelledby="rsvp-sheet-title" aria-hidden="true">
+  <div class="rsvp-sheet-handle" aria-hidden="true"></div>
+  <button type="button" class="rsvp-sheet-close" id="rsvp-sheet-close" aria-label="Close">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+  </button>
+  <h3 class="rsvp-sheet-title" id="rsvp-sheet-title">RSVP</h3>
 
+  <div class="rsvp-field">
+    <input type="text" id="rsvp-sheet-name" class="rsvp-name-input" placeholder="Your name" autocomplete="name">
+  </div>
+
+  <div class="rsvp-field">
+    <div class="rsvp-label">Will you be attending?</div>
+    <div class="rsvp-choice-group">
+      <button type="button" class="rsvp-choice-btn" id="rsvp-choice-yes" data-response="yes" aria-pressed="false">Accepts with pleasure</button>
+      <button type="button" class="rsvp-choice-btn" id="rsvp-choice-no" data-response="no" aria-pressed="false">Declines with regrets</button>
+    </div>
+  </div>
+
+  <div class="rsvp-field" id="rsvp-guests-field">
+    <div class="rsvp-label">Number of guests attending with you</div>
+    <input type="number" id="rsvp-guests" class="rsvp-name-input rsvp-guests-input" min="0" max="10" step="1" value="0" inputmode="numeric">
+  </div>
+
+  <button type="button" class="rsvp-btn rsvp-btn-yes rsvp-submit-btn" id="rsvp-submit">Submit</button>
+</div>
 
 </div><!-- /app-frame -->
 
@@ -1607,11 +1713,10 @@ a:focus-visible, button:focus-visible{
     var contentPx = vhToPx(CONTENT_SCROLL_VH);
     var invitationSettledY = (lockedPx - overlapPx) + invitationSettledT * contentPx;
 
-    // Deliberately unhurried (5s) — this is replacing what used to be
-    // several real scroll gestures, so snapping through it quickly
-    // would undercut the whole "door opens, camera finds Ganesha,
-    // the invitation arrives" reveal it's standing in for.
-    autoScrollTo(invitationSettledY, 5000);
+    // ~1s, eased in/out (see easeInOutCubic inside autoScrollTo) —
+    // brisk enough not to feel like a wait, but still a visible glide
+    // rather than an instant jump straight to the Invitation page.
+    autoScrollTo(invitationSettledY, 1000);
   }
   tapBtn.addEventListener("click", beginJourney);
   tapBtn.addEventListener("keydown", function(e){
@@ -1686,22 +1791,32 @@ a:focus-visible, button:focus-visible{
   });
 
   /* ============================================================
-     RSVP — sends {name, response, timestamp} to a Google Apps
-     Script Web App, which appends it as a row in the couple's
-     RSVP spreadsheet. See project notes for the Apps Script source
-     and deployment steps; paste the deployed /exec URL below once
-     it exists. Until then this fails silently (console warning
-     only) — the on-page thank-you/sorry message still shows either
-     way, since we send this "fire and forget" (see reasoning below).
+     RSVP — a bottom sheet (opened by the RSVP button in the RSVP
+     stage-block) collects name, attending yes/no, and guest count,
+     then sends {name, response, guests, timestamp} to a Google Apps
+     Script Web App, which appends it as a row in the couple's RSVP
+     spreadsheet. See project notes for the Apps Script source and
+     deployment steps; paste the deployed /exec URL below once it
+     exists. Until then this fails silently (console warning only) —
+     the on-page thank-you/sorry message still shows either way,
+     since we send this "fire and forget" (see reasoning below).
   ============================================================ */
   var RSVP_ENDPOINT_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
   var RSVP_STORAGE_KEY = "wedding-rsvp-response";
 
-  var rsvpNameInput = document.getElementById("rsvp-name");
-  var rsvpYesBtn = document.getElementById("rsvp-yes");
-  var rsvpNoBtn = document.getElementById("rsvp-no");
+  var rsvpOpenBtn = document.getElementById("rsvp-open-btn");
+  var rsvpSheetBackdrop = document.getElementById("rsvp-sheet-backdrop");
+  var rsvpSheet = document.getElementById("rsvp-sheet");
+  var rsvpSheetClose = document.getElementById("rsvp-sheet-close");
+  var rsvpNameInput = document.getElementById("rsvp-sheet-name");
+  var rsvpChoiceYesBtn = document.getElementById("rsvp-choice-yes");
+  var rsvpChoiceNoBtn = document.getElementById("rsvp-choice-no");
+  var rsvpGuestsField = document.getElementById("rsvp-guests-field");
+  var rsvpGuestsInput = document.getElementById("rsvp-guests");
+  var rsvpSubmitBtn = document.getElementById("rsvp-submit");
   var rsvpBannerEl = document.getElementById("rsvp-banner");
   var rsvpBannerTimer = null;
+  var rsvpSelectedResponse = null;
 
   function showRsvpBanner(message){
     if(!rsvpBannerEl) return;
@@ -1710,12 +1825,43 @@ a:focus-visible, button:focus-visible{
     if(rsvpBannerTimer){ window.clearTimeout(rsvpBannerTimer); }
     rsvpBannerTimer = window.setTimeout(function(){
       rsvpBannerEl.classList.remove("show");
-    }, 4000);
+    }, 5000);
   }
 
-  function setRsvpSelected(response){
-    if(rsvpYesBtn){ rsvpYesBtn.classList.toggle("selected", response === "yes"); }
-    if(rsvpNoBtn){ rsvpNoBtn.classList.toggle("selected", response === "no"); }
+  function setRsvpChoice(response){
+    rsvpSelectedResponse = response;
+    if(rsvpChoiceYesBtn){
+      rsvpChoiceYesBtn.classList.toggle("selected", response === "yes");
+      rsvpChoiceYesBtn.setAttribute("aria-pressed", response === "yes" ? "true" : "false");
+    }
+    if(rsvpChoiceNoBtn){
+      rsvpChoiceNoBtn.classList.toggle("selected", response === "no");
+      rsvpChoiceNoBtn.setAttribute("aria-pressed", response === "no" ? "true" : "false");
+    }
+    if(rsvpGuestsField){ rsvpGuestsField.style.display = response === "yes" ? "block" : "none"; }
+  }
+  if(rsvpChoiceYesBtn){ rsvpChoiceYesBtn.addEventListener("click", function(){ setRsvpChoice("yes"); }); }
+  if(rsvpChoiceNoBtn){ rsvpChoiceNoBtn.addEventListener("click", function(){ setRsvpChoice("no"); }); }
+
+  function openRsvpSheet(){
+    if(rsvpSheetBackdrop){ rsvpSheetBackdrop.classList.add("show"); }
+    if(rsvpSheet){ rsvpSheet.classList.add("show"); rsvpSheet.setAttribute("aria-hidden", "false"); }
+    document.body.style.overflowY = "hidden";
+  }
+  function closeRsvpSheet(){
+    if(rsvpSheetBackdrop){ rsvpSheetBackdrop.classList.remove("show"); }
+    if(rsvpSheet){ rsvpSheet.classList.remove("show"); rsvpSheet.setAttribute("aria-hidden", "true"); }
+    document.body.style.overflowY = "auto";
+  }
+  if(rsvpOpenBtn){ rsvpOpenBtn.addEventListener("click", openRsvpSheet); }
+  if(rsvpSheetClose){ rsvpSheetClose.addEventListener("click", closeRsvpSheet); }
+  if(rsvpSheetBackdrop){ rsvpSheetBackdrop.addEventListener("click", closeRsvpSheet); }
+
+  function shakeField(el){
+    if(!el) return;
+    el.classList.remove("rsvp-field-error");
+    void el.offsetWidth; // restart the shake animation even on repeated invalid submits
+    el.classList.add("rsvp-field-error");
   }
 
   // Fire-and-forget: Apps Script Web Apps don't send the CORS
@@ -1723,7 +1869,7 @@ a:focus-visible, button:focus-visible{
   // so mode:"no-cors" is used deliberately — the request still
   // reaches Google and gets recorded, we just can't confirm it from
   // here. The on-page message is shown optimistically as a result.
-  function sendRsvp(name, response){
+  function sendRsvp(payload){
     if(!RSVP_ENDPOINT_URL || RSVP_ENDPOINT_URL.indexOf("PASTE_YOUR") === 0){
       console.warn("RSVP not sent: RSVP_ENDPOINT_URL isn't configured yet.");
       return;
@@ -1732,48 +1878,50 @@ a:focus-visible, button:focus-visible{
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
-      body: JSON.stringify({ name: name, response: response, timestamp: new Date().toISOString() })
+      body: JSON.stringify(payload)
     }).catch(function(err){ console.warn("RSVP send failed:", err); });
   }
 
-  function handleRsvpClick(response){
+  function handleRsvpSubmit(){
     var name = rsvpNameInput ? rsvpNameInput.value.trim() : "";
-    if(!name){
-      if(rsvpNameInput){
-        rsvpNameInput.focus();
-        rsvpNameInput.classList.remove("rsvp-field-error");
-        // restart the shake animation even on repeated empty submits
-        void rsvpNameInput.offsetWidth;
-        rsvpNameInput.classList.add("rsvp-field-error");
-      }
-      return;
-    }
-    if(rsvpNameInput){ rsvpNameInput.classList.remove("rsvp-field-error"); }
+    var guests = rsvpGuestsInput ? Math.max(0, parseInt(rsvpGuestsInput.value, 10) || 0) : 0;
+    var valid = true;
 
-    setRsvpSelected(response);
+    if(!name){ shakeField(rsvpNameInput); valid = false; }
+    if(!rsvpSelectedResponse){
+      if(rsvpChoiceYesBtn){ shakeField(rsvpChoiceYesBtn); }
+      if(rsvpChoiceNoBtn){ shakeField(rsvpChoiceNoBtn); }
+      valid = false;
+    }
+    if(!valid) return;
+
+    if(rsvpSelectedResponse === "no"){ guests = 0; }
+
     try{
-      window.localStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify({ name: name, response: response }));
+      window.localStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify({ name: name, response: rsvpSelectedResponse, guests: guests }));
     } catch(e){ /* private browsing / storage disabled — selection just won't persist across visits */ }
 
-    if(response === "yes"){
+    sendRsvp({ name: name, response: rsvpSelectedResponse, guests: guests, timestamp: new Date().toISOString() });
+
+    closeRsvpSheet();
+    if(rsvpSelectedResponse === "yes"){
       showRsvpBanner("Thank you! We would love to have you at our wedding.");
     } else {
       showRsvpBanner("We would have loved to have you with us on our special day \u{1F622}");
     }
-    sendRsvp(name, response);
   }
-
-  if(rsvpYesBtn){ rsvpYesBtn.addEventListener("click", function(){ handleRsvpClick("yes"); }); }
-  if(rsvpNoBtn){ rsvpNoBtn.addEventListener("click", function(){ handleRsvpClick("no"); }); }
+  if(rsvpSubmitBtn){ rsvpSubmitBtn.addEventListener("click", handleRsvpSubmit); }
 
   // Restore a prior response on repeat visits (best-effort; skipped
-  // silently if localStorage is unavailable).
+  // silently if localStorage is unavailable) — pre-fills the sheet
+  // next time it's opened rather than assuming anything on load.
   (function restoreRsvp(){
     try{
       var saved = JSON.parse(window.localStorage.getItem(RSVP_STORAGE_KEY) || "null");
       if(saved && saved.response){
         if(rsvpNameInput && saved.name){ rsvpNameInput.value = saved.name; }
-        setRsvpSelected(saved.response);
+        setRsvpChoice(saved.response);
+        if(rsvpGuestsInput && saved.guests){ rsvpGuestsInput.value = saved.guests; }
       }
     } catch(e){ /* ignore */ }
   })();
