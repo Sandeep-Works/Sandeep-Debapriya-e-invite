@@ -1737,10 +1737,10 @@ a:focus-visible, button:focus-visible{
     var contentPx = vhToPx(CONTENT_SCROLL_VH);
     var invitationSettledY = (lockedPx - overlapPx) + invitationSettledT * contentPx;
 
-    // ~1s, eased in/out (see easeInOutCubic inside autoScrollTo) —
-    // brisk enough not to feel like a wait, but still a visible glide
-    // rather than an instant jump straight to the Invitation page.
-    autoScrollTo(invitationSettledY, 1000);
+    // ~2.5s, eased in/out (see easeInOutCubic inside autoScrollTo) —
+    // slow enough to actually read as door-opens-then-camera-pushes-in,
+    // not just a blink between two states.
+    autoScrollTo(invitationSettledY, 2500);
   }
   tapBtn.addEventListener("click", beginJourney);
   tapBtn.addEventListener("keydown", function(e){
