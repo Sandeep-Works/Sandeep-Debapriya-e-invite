@@ -1665,11 +1665,24 @@ a:focus-visible, button:focus-visible{
   // mid-flight immediately takes back manual control instead of the
   // page fighting their input.
   var autoScrollRafId = null;
-  function cancelAutoScroll(){
-    if(autoScrollRafId !== null){ cancelAnimationFrame(autoScrollRafId); autoScrollRafId = null; }
+  function stopAutoScrollListeners(){
     ["wheel", "touchstart", "keydown"].forEach(function(evt){
       window.removeEventListener(evt, cancelAutoScroll);
     });
+  }
+  // Syncs smoothCam/smoothContent to the CURRENT raw progress before
+  // starting the smoothing loop, so it picks up exactly where the
+  // directly-driven auto-scroll left off instead of restarting from
+  // 0 and visibly snapping backward before catching up.
+  function handOffToSmoothLoop(){
+    smoothCam = currentProgress();
+    smoothContent = contentProgress();
+    startSmoothLoop();
+  }
+  function cancelAutoScroll(){
+    if(autoScrollRafId !== null){ cancelAnimationFrame(autoScrollRafId); autoScrollRafId = null; }
+    stopAutoScrollListeners();
+    handOffToSmoothLoop();
   }
   function autoScrollTo(targetY, durationMs, onDone){
     var startY = window.scrollY;
@@ -1681,10 +1694,20 @@ a:focus-visible, button:focus-visible{
       if(startTime === null){ startTime = now; }
       var t = Math.min(1, (now - startTime) / durationMs);
       window.scrollTo(0, startY + (targetY - startY) * easeInOutCubic(t));
+      // Rendered directly from raw scroll progress every frame, with
+      // NO smoothing lag layered on top — easeInOutCubic above is
+      // already the intended easing curve for this sequence. Running
+      // the organic smoothCam lag on top of an already-eased curve
+      // compounds into a visible stall right after the tap, then a
+      // rushed catch-up — the bug this replaces.
+      applyProgress(currentProgress(), contentProgress());
+      renderStage(contentProgress());
       if(t < 1){
         autoScrollRafId = requestAnimationFrame(step);
       } else {
-        cancelAutoScroll();
+        autoScrollRafId = null;
+        stopAutoScrollListeners();
+        handOffToSmoothLoop();
         if(onDone){ onDone(); }
       }
     }
@@ -1724,7 +1747,10 @@ a:focus-visible, button:focus-visible{
       return;
     }
 
-    startSmoothLoop();
+    // The smoothing loop starts itself once autoScrollTo() below
+    // hands off (finishes or gets interrupted) — see
+    // handOffToSmoothLoop(). Starting it here too would run it
+    // concurrently with the directly-driven auto-scroll render.
 
     // Where the Invitation block (the first STAGE_BLOCKS entry)
     // finishes rising into full view — same TRANSITION_RATIO math
