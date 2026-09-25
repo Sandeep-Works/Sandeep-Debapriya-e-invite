@@ -1002,6 +1002,11 @@ html[data-variant="bride"] .variant-groom{ display:none; }
 
 <div id="app-frame">
 
+<!-- Fallback if the Web Audio API path fails for any reason (some
+     Android browsers/webviews) — see playFallbackAudio() in the
+     script. Has an audible gap at the loop point (the native loop
+     attribute isn't sample-accurate), but that beats silence. -->
+<audio id="bg-music-fallback" src="WC%20muisc%20low.wav" loop preload="none" style="display:none"></audio>
 <button type="button" id="music-toggle" class="music-toggle" aria-label="Mute music" aria-pressed="false">
   <svg class="music-icon-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
   <svg class="music-icon-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
@@ -1450,43 +1455,76 @@ html[data-variant="bride"] .variant-groom{ display:none; }
   var musicToggleEl = document.getElementById("music-toggle");
   var journeyStarted = false;
 
-  // Web Audio API instead of a plain <audio loop> element: the
-  // native loop attribute has to stop and re-decode at the loop
-  // point, which isn't sample-accurate and leaves an audible gap on
-  // most browsers. Decoding the whole file into an AudioBuffer once
-  // and looping THAT via AudioBufferSourceNode is sample-accurate —
-  // no gap, because there's no decode/restart happening at the seam
-  // at all, just the same continuous buffer wrapping around.
+  // Web Audio API is the PRIMARY path: the native <audio loop>
+  // attribute has to stop and re-decode at the loop point, which
+  // isn't sample-accurate and leaves an audible gap. Decoding the
+  // whole file into an AudioBuffer once and looping THAT via
+  // AudioBufferSourceNode is sample-accurate — no gap.
+  //
+  // The fetch+decode is PRELOADED at page load (preloadBgMusic(),
+  // called immediately below, no gesture needed for this part — only
+  // actually RESUMING the context requires one). This matters because
+  // several Android Chrome/WebView builds appear to silently drop
+  // playback if there's any async delay between the tap gesture and
+  // the first buffer source .start() call — decoding a ~6MB file
+  // easily takes long enough to fall outside that window. By the time
+  // the guest taps, the buffer is already sitting in memory, so
+  // playBgMusic() only has to do two synchronous, instant things:
+  // resume() the context and start() the buffer.
+  //
+  // A plain <audio loop> element (#bg-music-fallback in the HTML) is
+  // kept as a FALLBACK for anywhere the Web Audio path fails outright
+  // (AudioContext unsupported, fetch/decode erroring). Some music
+  // (with a small loop-point gap) beats no music at all.
   var BG_MUSIC_URL = "WC%20muisc%20low.wav";
   var audioCtx = null;
   var bgMusicBuffer = null;
+  var bgMusicBufferPromise = null;
   var bgMusicSource = null;
   var bgMusicGain = null;
   var bgMusicMuted = false;
+  var bgMusicFallbackEl = document.getElementById("bg-music-fallback");
+  var usingFallbackAudio = false;
 
-  // Wrapped defensively: this whole chain (context creation, fetch,
-  // decode, buffer-source start) runs inside beginJourney() BEFORE
-  // the door/camera auto-scroll kicks off — if anything here threw
-  // uncaught, it would silently abort the rest of that function too
-  // (doors, zoom, everything), not just the music. Music failing
-  // should never be able to take the rest of the reveal down with it.
-  function ensureAudioContext(){
+  function playFallbackAudio(){
+    if(!bgMusicFallbackEl || usingFallbackAudio) return;
+    usingFallbackAudio = true;
     try{
-      if(!audioCtx){
-        var AC = window.AudioContext || window.webkitAudioContext;
-        if(!AC) return null;
-        audioCtx = new AC();
-      }
-      // Must be resumed synchronously inside the same user gesture that
-      // created/unlocked it — required by iOS Safari and Chrome's
-      // autoplay policies, same constraint the old <audio>.play() had.
-      if(audioCtx.state === "suspended"){ audioCtx.resume(); }
-      return audioCtx;
+      bgMusicFallbackEl.muted = bgMusicMuted;
+      var p = bgMusicFallbackEl.play();
+      if(p && p.catch){ p.catch(function(err){ console.warn("Background music: <audio> fallback also failed:", err); }); }
     } catch(err){
-      console.warn("Background music unavailable (AudioContext failed):", err);
-      return null;
+      console.warn("Background music: <audio> fallback threw:", err);
     }
   }
+
+  // Creating an AudioContext without a gesture is allowed (it just
+  // starts "suspended") — only RESUMING it into a running state needs
+  // one, which playBgMusic() below still does, synchronously, inside
+  // the tap handler.
+  function preloadBgMusic(){
+    try{
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return;
+      if(!audioCtx){ audioCtx = new AC(); }
+      if(bgMusicBufferPromise) return;
+      bgMusicBufferPromise = fetch(BG_MUSIC_URL)
+        .then(function(res){
+          if(!res.ok){ throw new Error("HTTP " + res.status); }
+          return res.arrayBuffer();
+        })
+        .then(function(data){ return audioCtx.decodeAudioData(data); })
+        .then(function(buffer){ bgMusicBuffer = buffer; return buffer; })
+        .catch(function(err){
+          console.warn("Background music: preload failed:", err);
+          return null;
+        });
+    } catch(err){
+      console.warn("Background music: preload threw:", err);
+    }
+  }
+  preloadBgMusic();
+
   function startBgMusicSource(ctx){
     try{
       bgMusicGain = ctx.createGain();
@@ -1498,34 +1536,40 @@ html[data-variant="bride"] .variant-groom{ display:none; }
       bgMusicSource.connect(bgMusicGain);
       bgMusicSource.start(0);
     } catch(err){
-      console.warn("Background music failed to start:", err);
+      console.warn("Background music: buffer source failed, falling back to <audio>:", err);
+      bgMusicSource = null;
+      playFallbackAudio();
     }
   }
   // Called synchronously from the tap handler (never after an await
-  // or setTimeout) so creating/resuming the AudioContext still counts
-  // as "within a user gesture." The fetch+decode that follows is
-  // async, but that's fine — the context itself is already unlocked
-  // by the time it resolves.
+  // or setTimeout) — resume() must run inside the actual gesture.
   function playBgMusic(){
+    if(bgMusicSource || usingFallbackAudio) return; // already playing, one way or the other
+    if(!audioCtx){ playFallbackAudio(); return; }
     try{
-      var ctx = ensureAudioContext();
-      if(!ctx || bgMusicSource) return;
-      if(bgMusicBuffer){ startBgMusicSource(ctx); return; }
-      fetch(BG_MUSIC_URL)
-        .then(function(res){ return res.arrayBuffer(); })
-        .then(function(data){ return ctx.decodeAudioData(data); })
-        .then(function(buffer){
-          bgMusicBuffer = buffer;
-          startBgMusicSource(ctx);
-        })
-        .catch(function(err){ console.warn("Background music failed to load:", err); });
+      if(audioCtx.state === "suspended"){ audioCtx.resume(); }
     } catch(err){
-      console.warn("playBgMusic() failed:", err);
+      console.warn("Background music: resume() failed, falling back to <audio>:", err);
+      playFallbackAudio();
+      return;
+    }
+    if(bgMusicBuffer){ startBgMusicSource(audioCtx); return; }
+    // Preload hasn't finished yet (slow connection) — start as soon
+    // as it resolves, still without ever having left the tap's own
+    // synchronous resume() call waiting on it.
+    if(bgMusicBufferPromise){
+      bgMusicBufferPromise.then(function(buffer){
+        if(bgMusicSource || usingFallbackAudio) return;
+        if(buffer){ startBgMusicSource(audioCtx); } else { playFallbackAudio(); }
+      });
+    } else {
+      playFallbackAudio();
     }
   }
   function setMusicToggleState(muted){
     bgMusicMuted = muted;
     if(bgMusicGain){ bgMusicGain.gain.value = muted ? 0 : 1; }
+    if(bgMusicFallbackEl){ bgMusicFallbackEl.muted = muted; }
     if(!musicToggleEl) return;
     musicToggleEl.classList.toggle("muted", muted);
     musicToggleEl.setAttribute("aria-pressed", muted ? "true" : "false");
