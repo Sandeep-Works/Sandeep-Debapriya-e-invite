@@ -3,6 +3,20 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<script>
+// Two content versions of the same site — groom side (default) and
+// bride side (?side=bride) — decided here, synchronously, before
+// anything renders, so there's no flash of the wrong variant's
+// content. See [data-variant] rules throughout the CSS and the
+// .variant-groom/.variant-bride wrapper pairs throughout the HTML —
+// everything else (animation, layout, RSVP, styling) is fully shared
+// between the two.
+(function(){
+  var params = new URLSearchParams(window.location.search);
+  var variant = params.get("side") === "bride" ? "bride" : "groom";
+  document.documentElement.setAttribute("data-variant", variant);
+})();
+</script>
 <title>Sandeep &amp; Debapriya — Wedding E-Invite</title>
 <meta name="description" content="Sandeep & Debapriya invite you to celebrate their wedding — 25th November 2026, Kolkata.">
 
@@ -101,6 +115,17 @@ a:focus-visible, button:focus-visible{
   position:absolute !important; width:1px; height:1px; overflow:hidden;
   clip:rect(0 0 0 0); white-space:nowrap; border:0; padding:0; margin:-1px;
 }
+
+/* Bride-side vs groom-side content — see the inline script at the
+   top of <head> for how [data-variant] gets set. Groom is the
+   default (no wrapper needed for it to show); .variant-bride is
+   hidden unless the page is explicitly the bride variant. */
+/* Only ever hides the INACTIVE variant — never forces a display
+   value on the active one, so each element keeps whatever display
+   its own class already specifies (flex, block, inline-flex, ...)
+   instead of this rule fighting it. */
+html:not([data-variant="bride"]) .variant-bride{ display:none; }
+html[data-variant="bride"] .variant-groom{ display:none; }
 
 .eyebrow{
   font-family:var(--font-body);
@@ -1050,7 +1075,8 @@ a:focus-visible, button:focus-visible{
       <!-- INVITATION -->
       <div class="stage-block" id="block-invitation">
         <div class="eyebrow">TOGETHER WITH THEIR FAMILIES</div>
-        <h1 class="hero-names-text">Sandeep<span class="hero-amp">&amp;</span>Debapriya</h1>
+        <h1 class="hero-names-text variant-groom">Sandeep<span class="hero-amp">&amp;</span>Debapriya</h1>
+        <h1 class="hero-names-text variant-bride">Debapriya<span class="hero-amp">&amp;</span>Sandeep</h1>
         <p class="hero-sub">invite you to celebrate their new beginnings</p>
         <div class="hero-date">25th November 2026</div>
         <div class="hero-place">at Aayojan Banquets, Sector 1, Salt Lake, Kolkata</div>
@@ -1086,7 +1112,7 @@ a:focus-visible, button:focus-visible{
         <div class="eyebrow">THE VENUE</div>
         <h2 class="content-title venues-title">Find us here</h2>
         <div class="celebrations-rule" aria-hidden="true"></div>
-        <div class="venues-list">
+        <div class="venues-list variant-groom">
           <div class="venue-card">
             <div class="venue-icon" aria-hidden="true">
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -1121,14 +1147,50 @@ a:focus-visible, button:focus-visible{
             </a>
           </div>
         </div>
+        <div class="venues-list variant-bride">
+          <div class="venue-card">
+            <div class="venue-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <h3 class="venue-name">Aiburobhaat</h3>
+            <div class="venue-address">Mashgul Apartments, Newtown, Action Area 1</div>
+            <!-- TODO: needs a real maps link from Sandeep, currently a placeholder -->
+            <a class="venue-btn celebration-btn" href="#" target="_blank" rel="noopener">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              Get directions
+            </a>
+          </div>
+          <div class="venue-card">
+            <div class="venue-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <h3 class="venue-name">Gaye Holud &amp; Subho Bibaho</h3>
+            <div class="venue-address">Ayojon Banquets, Andromeda Building, Salt Lake</div>
+            <a class="venue-btn celebration-btn" href="https://maps.app.goo.gl/RPNxFGUYXrQw1eg46" target="_blank" rel="noopener">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              Get directions
+            </a>
+          </div>
+          <div class="venue-card">
+            <div class="venue-icon" aria-hidden="true">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+            </div>
+            <h3 class="venue-name">Reception</h3>
+            <div class="venue-address">Shivam Garden, Madhyamgram</div>
+            <a class="venue-btn celebration-btn" href="https://maps.app.goo.gl/iW6rra9F1EJUN5EMA" target="_blank" rel="noopener">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
+              Get directions
+            </a>
+          </div>
+        </div>
       </div>
 
       <!-- OUR CELEBRATIONS -->
       <div class="stage-block stage-block-schedule" id="block-celebrations">
         <div class="eyebrow">OUR CELEBRATIONS</div>
-        <h2 class="content-title schedule-title">Two Days, One Beginning</h2>
+        <h2 class="content-title schedule-title variant-groom">Two Days, One Beginning</h2>
         <div class="schedule-rule" aria-hidden="true"><span>&#10022;</span></div>
-        <div class="schedule-timeline">
+        <div class="schedule-timeline variant-groom">
           <div class="schedule-item schedule-left">
             <div class="schedule-content">
               <span class="schedule-time">25 Nov · 8:00 AM</span>
@@ -1182,6 +1244,60 @@ a:focus-visible, button:focus-visible{
             </div>
           </div>
         </div>
+        <div class="schedule-timeline variant-bride">
+          <div class="schedule-item schedule-left">
+            <div class="schedule-content">
+              <span class="schedule-time">24 Nov · 9:00 AM</span>
+              <span class="schedule-label">Aiburobhaat</span>
+              <a class="schedule-cal" id="cal-aiburobhaat" href="#" target="_blank" rel="noopener">+ Add to calendar</a>
+            </div>
+            <div class="schedule-node-col">
+              <div class="schedule-node" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21a9 9 0 0 0 9-9H3a9 9 0 0 0 9 9Z"/><path d="M7 21h10"/><path d="M16.25 3c.27.1.8.53.75 1.36-.06.97-.8 1.64-.5 2.9"/><path d="M11.25 3c.27.1.75.53.68 1.36-.08.97-.93 1.64-.63 2.9"/></svg>
+              </div>
+            </div>
+            <div class="schedule-content"></div>
+          </div>
+          <div class="schedule-item schedule-right">
+            <div class="schedule-content"></div>
+            <div class="schedule-node-col">
+              <div class="schedule-node" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 20A7 7 0 0 1 9.8 6.1C15.5 5 17 4.48 19 2c1 2 2 4.18 2 8 0 5.5-4.78 10-10 10Z"/><path d="M2 21c0-3 1.85-5.36 5.08-6C9.5 14.52 12 13 13 12"/></svg>
+              </div>
+            </div>
+            <div class="schedule-content">
+              <span class="schedule-time">25 Nov · 10:00 AM</span>
+              <span class="schedule-label">Gaye Holud</span>
+              <a class="schedule-cal" id="cal-gaye-holud-b" href="#" target="_blank" rel="noopener">+ Add to calendar</a>
+            </div>
+          </div>
+          <div class="schedule-item schedule-left">
+            <div class="schedule-content">
+              <span class="schedule-time">25 Nov · 6:30 PM</span>
+              <span class="schedule-label">Subho Bibaho</span>
+              <a class="schedule-cal" id="cal-subho-bibaho-b" href="#" target="_blank" rel="noopener">+ Add to calendar</a>
+            </div>
+            <div class="schedule-node-col">
+              <div class="schedule-node" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="12" r="5"/><circle cx="15" cy="12" r="5"/></svg>
+              </div>
+            </div>
+            <div class="schedule-content"></div>
+          </div>
+          <div class="schedule-item schedule-right">
+            <div class="schedule-content"></div>
+            <div class="schedule-node-col">
+              <div class="schedule-node" aria-hidden="true">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+              </div>
+            </div>
+            <div class="schedule-content">
+              <span class="schedule-time">27 Nov · 7:00 PM</span>
+              <span class="schedule-label">Reception</span>
+              <a class="schedule-cal" id="cal-reception-b" href="#" target="_blank" rel="noopener">+ Add to calendar</a>
+            </div>
+          </div>
+        </div>
       </div>
 
       <!-- RSVP -->
@@ -1195,10 +1311,15 @@ a:focus-visible, button:focus-visible{
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
           </div>
           <div class="contact-us-label">Contact Us</div>
-          <div class="contact-us-numbers">
+          <div class="contact-us-numbers variant-groom">
             <a class="contact-us-number" href="tel:+918250312031">8250312031</a>
             <span class="contact-us-sep">/</span>
             <a class="contact-us-number" href="tel:+919933637027">9933637027</a>
+          </div>
+          <div class="contact-us-numbers variant-bride">
+            <a class="contact-us-number" href="tel:+919830353849">9830353849</a>
+            <span class="contact-us-sep">/</span>
+            <a class="contact-us-number" href="tel:+919836298687">9836298687</a>
           </div>
         </div>
       </div>
@@ -2002,6 +2123,27 @@ a:focus-visible, button:focus-visible{
     { btnId:"cal-reception",    title:"Reception — Debapriya & Sandeep",
       start:"2026-11-27T19:00:00", end:"2026-11-27T22:30:00",
       location:"Shivam Garden",
+      details:"Reception. Location: https://maps.app.goo.gl/iW6rra9F1EJUN5EMA" },
+    // Bride-side variant (?side=bride) events — see the
+    // .variant-groom/.variant-bride wrappers in the HTML. Both
+    // variants' elements exist in the DOM at all times (one just
+    // display:none), so this loop safely sets hrefs on all of them
+    // regardless of which variant is currently active.
+    { btnId:"cal-aiburobhaat",   title:"Aiburobhaat — Debapriya & Sandeep",
+      start:"2026-11-24T09:00:00", end:"2026-11-24T12:00:00",
+      location:"Mashgul Apartments, Newtown, Action Area 1",
+      details:"Aiburobhaat." },
+    { btnId:"cal-gaye-holud-b", title:"Gaye Holud — Debapriya & Sandeep",
+      start:"2026-11-25T10:00:00", end:"2026-11-25T13:00:00",
+      location:"Ayojon Banquets",
+      details:"Gaye Holud. Location: https://maps.app.goo.gl/RPNxFGUYXrQw1eg46" },
+    { btnId:"cal-subho-bibaho-b", title:"Subho Bibaho — Debapriya & Sandeep",
+      start:"2026-11-25T18:30:00", end:"2026-11-25T22:00:00",
+      location:"Ayojon Banquets",
+      details:"Subho Bibaho (wedding ceremony). Location: https://maps.app.goo.gl/RPNxFGUYXrQw1eg46" },
+    { btnId:"cal-reception-b",  title:"Reception — Debapriya & Sandeep",
+      start:"2026-11-27T19:00:00", end:"2026-11-27T22:30:00",
+      location:"Shivam Garden",
       details:"Reception. Location: https://maps.app.goo.gl/iW6rra9F1EJUN5EMA" }
   ];
   function toGCalStamp(localIso){ return localIso.replace(/[-:]/g, ""); }
@@ -2129,7 +2271,11 @@ a:focus-visible, button:focus-visible{
       window.localStorage.setItem(RSVP_STORAGE_KEY, JSON.stringify({ name: name, response: rsvpSelectedResponse, guests: guests }));
     } catch(e){ /* private browsing / storage disabled — selection just won't persist across visits */ }
 
-    sendRsvp({ name: name, response: rsvpSelectedResponse, guests: guests, timestamp: new Date().toISOString() });
+    sendRsvp({
+      name: name, response: rsvpSelectedResponse, guests: guests,
+      side: document.documentElement.getAttribute("data-variant") || "groom",
+      timestamp: new Date().toISOString()
+    });
 
     closeRsvpSheet();
     if(rsvpSelectedResponse === "yes"){
