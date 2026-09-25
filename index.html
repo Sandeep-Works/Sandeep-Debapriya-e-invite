@@ -907,6 +907,44 @@ a:focus-visible, button:focus-visible{
 }
 .rsvp-banner.show{ opacity:1; transform:translateY(0); }
 .rsvp-closing-rule{ margin-top:28px; }
+.contact-us{
+  margin-top:22px;
+  text-align:center;
+}
+.contact-us-icon{
+  width:34px; height:34px;
+  border-radius:50%;
+  border:1px solid rgba(201,162,100,.5);
+  color:var(--gold-soft);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:0 auto 10px;
+}
+.contact-us-label{
+  font-family:var(--font-body);
+  font-size:12px;
+  font-weight:600;
+  letter-spacing:.14em;
+  text-transform:uppercase;
+  color:var(--gold);
+  margin-bottom:8px;
+}
+.contact-us-numbers{
+  font-family:var(--font-body);
+  font-size:14px;
+  color:rgba(251,247,238,.7);
+}
+.contact-us-number{
+  color:var(--paper);
+  text-decoration:none;
+  text-shadow:0 1px 8px rgba(0,0,0,.5);
+}
+.contact-us-number:hover{ text-decoration:underline; }
+.contact-us-sep{
+  margin:0 8px;
+  color:rgba(201,162,100,.5);
+}
 
 /* ============================================================
    Reduced motion
@@ -1152,6 +1190,17 @@ a:focus-visible, button:focus-visible{
         <button type="button" class="rsvp-btn rsvp-btn-yes rsvp-open-btn" id="rsvp-open-btn">RSVP</button>
         <div class="rsvp-banner" id="rsvp-banner" role="status" aria-live="polite"></div>
         <div class="schedule-rule rsvp-closing-rule" aria-hidden="true"><span>&#10022;</span></div>
+        <div class="contact-us">
+          <div class="contact-us-icon" aria-hidden="true">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72c.127.96.361 1.903.7 2.81a2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0 1 22 16.92z"/></svg>
+          </div>
+          <div class="contact-us-label">Contact Us</div>
+          <div class="contact-us-numbers">
+            <a class="contact-us-number" href="tel:+918250312031">8250312031</a>
+            <span class="contact-us-sep">/</span>
+            <a class="contact-us-number" href="tel:+919933637027">9933637027</a>
+          </div>
+        </div>
       </div>
     </div>
   </section>
