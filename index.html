@@ -1153,7 +1153,7 @@ html[data-variant="bride"] .variant-groom{ display:none; }
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
             </div>
             <h3 class="venue-name">Aiburobhaat</h3>
-            <div class="venue-address">Mashgul Apartments, Newtown, Action Area 1</div>
+            <div class="venue-address">Mashgool Co-op Housing Society, Newtown, Action Area 1</div>
             <!-- TODO: needs a real maps link from Sandeep, currently a placeholder -->
             <a class="venue-btn celebration-btn" href="#" target="_blank" rel="noopener">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="3 11 22 2 13 21 11 13 3 11"/></svg>
@@ -1465,27 +1465,42 @@ html[data-variant="bride"] .variant-groom{ display:none; }
   var bgMusicGain = null;
   var bgMusicMuted = false;
 
+  // Wrapped defensively: this whole chain (context creation, fetch,
+  // decode, buffer-source start) runs inside beginJourney() BEFORE
+  // the door/camera auto-scroll kicks off — if anything here threw
+  // uncaught, it would silently abort the rest of that function too
+  // (doors, zoom, everything), not just the music. Music failing
+  // should never be able to take the rest of the reveal down with it.
   function ensureAudioContext(){
-    if(!audioCtx){
-      var AC = window.AudioContext || window.webkitAudioContext;
-      if(!AC) return null;
-      audioCtx = new AC();
+    try{
+      if(!audioCtx){
+        var AC = window.AudioContext || window.webkitAudioContext;
+        if(!AC) return null;
+        audioCtx = new AC();
+      }
+      // Must be resumed synchronously inside the same user gesture that
+      // created/unlocked it — required by iOS Safari and Chrome's
+      // autoplay policies, same constraint the old <audio>.play() had.
+      if(audioCtx.state === "suspended"){ audioCtx.resume(); }
+      return audioCtx;
+    } catch(err){
+      console.warn("Background music unavailable (AudioContext failed):", err);
+      return null;
     }
-    // Must be resumed synchronously inside the same user gesture that
-    // created/unlocked it — required by iOS Safari and Chrome's
-    // autoplay policies, same constraint the old <audio>.play() had.
-    if(audioCtx.state === "suspended"){ audioCtx.resume(); }
-    return audioCtx;
   }
   function startBgMusicSource(ctx){
-    bgMusicGain = ctx.createGain();
-    bgMusicGain.gain.value = bgMusicMuted ? 0 : 1;
-    bgMusicGain.connect(ctx.destination);
-    bgMusicSource = ctx.createBufferSource();
-    bgMusicSource.buffer = bgMusicBuffer;
-    bgMusicSource.loop = true;
-    bgMusicSource.connect(bgMusicGain);
-    bgMusicSource.start(0);
+    try{
+      bgMusicGain = ctx.createGain();
+      bgMusicGain.gain.value = bgMusicMuted ? 0 : 1;
+      bgMusicGain.connect(ctx.destination);
+      bgMusicSource = ctx.createBufferSource();
+      bgMusicSource.buffer = bgMusicBuffer;
+      bgMusicSource.loop = true;
+      bgMusicSource.connect(bgMusicGain);
+      bgMusicSource.start(0);
+    } catch(err){
+      console.warn("Background music failed to start:", err);
+    }
   }
   // Called synchronously from the tap handler (never after an await
   // or setTimeout) so creating/resuming the AudioContext still counts
@@ -1493,17 +1508,21 @@ html[data-variant="bride"] .variant-groom{ display:none; }
   // async, but that's fine — the context itself is already unlocked
   // by the time it resolves.
   function playBgMusic(){
-    var ctx = ensureAudioContext();
-    if(!ctx || bgMusicSource) return;
-    if(bgMusicBuffer){ startBgMusicSource(ctx); return; }
-    fetch(BG_MUSIC_URL)
-      .then(function(res){ return res.arrayBuffer(); })
-      .then(function(data){ return ctx.decodeAudioData(data); })
-      .then(function(buffer){
-        bgMusicBuffer = buffer;
-        startBgMusicSource(ctx);
-      })
-      .catch(function(err){ console.warn("Background music failed to load:", err); });
+    try{
+      var ctx = ensureAudioContext();
+      if(!ctx || bgMusicSource) return;
+      if(bgMusicBuffer){ startBgMusicSource(ctx); return; }
+      fetch(BG_MUSIC_URL)
+        .then(function(res){ return res.arrayBuffer(); })
+        .then(function(data){ return ctx.decodeAudioData(data); })
+        .then(function(buffer){
+          bgMusicBuffer = buffer;
+          startBgMusicSource(ctx);
+        })
+        .catch(function(err){ console.warn("Background music failed to load:", err); });
+    } catch(err){
+      console.warn("playBgMusic() failed:", err);
+    }
   }
   function setMusicToggleState(muted){
     bgMusicMuted = muted;
@@ -2131,7 +2150,7 @@ html[data-variant="bride"] .variant-groom{ display:none; }
     // regardless of which variant is currently active.
     { btnId:"cal-aiburobhaat",   title:"Aiburobhaat — Debapriya & Sandeep",
       start:"2026-11-24T09:00:00", end:"2026-11-24T12:00:00",
-      location:"Mashgul Apartments, Newtown, Action Area 1",
+      location:"Mashgool Co-op Housing Society, Newtown, Action Area 1",
       details:"Aiburobhaat." },
     { btnId:"cal-gaye-holud-b", title:"Gaye Holud — Debapriya & Sandeep",
       start:"2026-11-25T10:00:00", end:"2026-11-25T13:00:00",
