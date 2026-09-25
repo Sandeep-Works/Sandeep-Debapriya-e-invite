@@ -1682,9 +1682,16 @@ a:focus-visible, button:focus-visible{
       // next section, about to rise into view) stays fully clickable
       // — if any of ITS elements land on the same screen position as
       // a button/link in the block that's actually meant to be
-      // visible, it silently swallows the tap. Only the
-      // substantially-visible block should be interactive.
-      el.style.pointerEvents = of.o > 0.5 ? "auto" : "none";
+      // visible, it silently swallows the tap. Only genuinely-hidden
+      // blocks (near-zero opacity, e.g. the PEEK_O=0.18 preview or
+      // fully off-screen) lose pointer-events — kept well below the
+      // opacity a block sits at while it's actually being read, so a
+      // tap landing right as a transition is still mid-flight can't
+      // get cancelled by pointer-events flipping under it. The very
+      // last block (i === stageEls.length-1, currently RSVP) is
+      // always left interactive — nothing in the DOM comes after it,
+      // so nothing can ever paint over it the way this guards against.
+      el.style.pointerEvents = (i === stageEls.length - 1 || of.o > 0.1) ? "auto" : "none";
     }
 
     // the Ganesha image itself never moves; this one overlay fades in
