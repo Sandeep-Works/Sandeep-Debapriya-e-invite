@@ -2171,7 +2171,14 @@ html[data-variant="bride"] .variant-groom{ display:none; }
      the on-page thank-you/sorry message still shows either way,
      since we send this "fire and forget" (see reasoning below).
   ============================================================ */
-  var RSVP_ENDPOINT_URL = "https://script.google.com/macros/s/AKfycbw49-RViZ0OFF7pkfnk_IieZzVGDKQaKb03NPjXQ6fnzcWHudN9S8lcxT0Eg05Jjj1f/exec";
+  // One Apps Script deployment per spreadsheet — groom-side and
+  // bride-side RSVPs go to two entirely separate Google Sheets, so
+  // each needs its own Web App URL. Routed by data-variant (see the
+  // inline script at the top of <head>) inside sendRsvp() below.
+  var RSVP_ENDPOINT_URLS = {
+    groom: "https://script.google.com/macros/s/AKfycbw49-RViZ0OFF7pkfnk_IieZzVGDKQaKb03NPjXQ6fnzcWHudN9S8lcxT0Eg05Jjj1f/exec",
+    bride: "PASTE_BRIDE_APPS_SCRIPT_WEB_APP_URL_HERE"
+  };
   var RSVP_STORAGE_KEY = "wedding-rsvp-response";
 
   var rsvpOpenBtn = document.getElementById("rsvp-open-btn");
@@ -2240,11 +2247,13 @@ html[data-variant="bride"] .variant-groom{ display:none; }
   // reaches Google and gets recorded, we just can't confirm it from
   // here. The on-page message is shown optimistically as a result.
   function sendRsvp(payload){
-    if(!RSVP_ENDPOINT_URL || RSVP_ENDPOINT_URL.indexOf("PASTE_YOUR") === 0){
-      console.warn("RSVP not sent: RSVP_ENDPOINT_URL isn't configured yet.");
+    var variant = document.documentElement.getAttribute("data-variant") || "groom";
+    var endpoint = RSVP_ENDPOINT_URLS[variant] || RSVP_ENDPOINT_URLS.groom;
+    if(!endpoint || endpoint.indexOf("PASTE_") === 0){
+      console.warn("RSVP not sent: no Apps Script URL configured yet for the '" + variant + "' side.");
       return;
     }
-    fetch(RSVP_ENDPOINT_URL, {
+    fetch(endpoint, {
       method: "POST",
       mode: "no-cors",
       headers: { "Content-Type": "text/plain;charset=utf-8" },
