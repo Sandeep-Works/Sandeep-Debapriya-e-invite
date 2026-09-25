@@ -939,7 +939,6 @@ a:focus-visible, button:focus-visible{
 
 <div id="app-frame">
 
-<audio id="bg-music" src="WC%20muisc%20low.wav" loop preload="auto"></audio>
 <button type="button" id="music-toggle" class="music-toggle" aria-label="Mute music" aria-pressed="false">
   <svg class="music-icon-on" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M15.54 8.46a5 5 0 0 1 0 7.07"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14"/></svg>
   <svg class="music-icon-off" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><line x1="23" y1="9" x2="17" y2="15"/><line x1="17" y1="9" x2="23" y2="15"/></svg>
@@ -1279,19 +1278,66 @@ a:focus-visible, button:focus-visible{
   var leafRightEl = document.getElementById("leaf-right");
   var doorCopyEl = document.getElementById("door-copy");
   var tapBtn = document.getElementById("tap-to-open");
-  var bgMusicEl = document.getElementById("bg-music");
   var musicToggleEl = document.getElementById("music-toggle");
   var journeyStarted = false;
 
+  // Web Audio API instead of a plain <audio loop> element: the
+  // native loop attribute has to stop and re-decode at the loop
+  // point, which isn't sample-accurate and leaves an audible gap on
+  // most browsers. Decoding the whole file into an AudioBuffer once
+  // and looping THAT via AudioBufferSourceNode is sample-accurate —
+  // no gap, because there's no decode/restart happening at the seam
+  // at all, just the same continuous buffer wrapping around.
+  var BG_MUSIC_URL = "WC%20muisc%20low.wav";
+  var audioCtx = null;
+  var bgMusicBuffer = null;
+  var bgMusicSource = null;
+  var bgMusicGain = null;
+  var bgMusicMuted = false;
+
+  function ensureAudioContext(){
+    if(!audioCtx){
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if(!AC) return null;
+      audioCtx = new AC();
+    }
+    // Must be resumed synchronously inside the same user gesture that
+    // created/unlocked it — required by iOS Safari and Chrome's
+    // autoplay policies, same constraint the old <audio>.play() had.
+    if(audioCtx.state === "suspended"){ audioCtx.resume(); }
+    return audioCtx;
+  }
+  function startBgMusicSource(ctx){
+    bgMusicGain = ctx.createGain();
+    bgMusicGain.gain.value = bgMusicMuted ? 0 : 1;
+    bgMusicGain.connect(ctx.destination);
+    bgMusicSource = ctx.createBufferSource();
+    bgMusicSource.buffer = bgMusicBuffer;
+    bgMusicSource.loop = true;
+    bgMusicSource.connect(bgMusicGain);
+    bgMusicSource.start(0);
+  }
   // Called synchronously from the tap handler (never after an await
-  // or setTimeout) so it still counts as "within a user gesture" —
-  // required by both iOS Safari and Chrome's autoplay policies.
+  // or setTimeout) so creating/resuming the AudioContext still counts
+  // as "within a user gesture." The fetch+decode that follows is
+  // async, but that's fine — the context itself is already unlocked
+  // by the time it resolves.
   function playBgMusic(){
-    if(!bgMusicEl) return;
-    var p = bgMusicEl.play();
-    if(p && p.catch){ p.catch(function(){ /* autoplay blocked — guest can still start it via the toggle */ }); }
+    var ctx = ensureAudioContext();
+    if(!ctx || bgMusicSource) return;
+    if(bgMusicBuffer){ startBgMusicSource(ctx); return; }
+    fetch(BG_MUSIC_URL)
+      .then(function(res){ return res.arrayBuffer(); })
+      .then(function(data){ return ctx.decodeAudioData(data); })
+      .then(function(buffer){
+        bgMusicBuffer = buffer;
+        startBgMusicSource(ctx);
+      })
+      .catch(function(err){ console.warn("Background music failed to load:", err); });
   }
   function setMusicToggleState(muted){
+    bgMusicMuted = muted;
+    if(bgMusicGain){ bgMusicGain.gain.value = muted ? 0 : 1; }
     if(!musicToggleEl) return;
     musicToggleEl.classList.toggle("muted", muted);
     musicToggleEl.setAttribute("aria-pressed", muted ? "true" : "false");
@@ -1299,9 +1345,7 @@ a:focus-visible, button:focus-visible{
   }
   if(musicToggleEl){
     musicToggleEl.addEventListener("click", function(){
-      if(!bgMusicEl) return;
-      if(bgMusicEl.paused){ playBgMusic(); setMusicToggleState(false); }
-      else { bgMusicEl.pause(); setMusicToggleState(true); }
+      setMusicToggleState(!bgMusicMuted);
     });
   }
 
