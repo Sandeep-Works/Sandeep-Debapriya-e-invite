@@ -992,12 +992,31 @@ html[data-variant="bride"] .variant-groom{ display:none; }
   color:rgba(201,162,100,.5);
 }
 
+/* Dedicated scroll-up affordance on the Invitation page (both site
+   variants) — a reminder that the door/camera intro the guest just
+   auto-played through is itself reversible by scrolling back up. */
+.invite-scroll-hint{
+  display:flex;
+  justify-content:center;
+  margin:0 0 12px 0;
+  color:rgba(246,238,223,.9);
+  filter:drop-shadow(0 2px 8px rgba(0,0,0,.55));
+}
+.invite-scroll-hint-arrow{
+  animation:invite-scroll-hint-bounce 1.6s ease-in-out infinite;
+}
+@keyframes invite-scroll-hint-bounce{
+  0%, 100%{ transform:translateY(0); opacity:.55; }
+  50%{ transform:translateY(-10px); opacity:1; }
+}
+
 /* ============================================================
    Reduced motion
    ============================================================ */
 @media (prefers-reduced-motion: reduce){
   html{ scroll-behavior:auto; }
   .loader-mark::before{ animation:none !important; }
+  .invite-scroll-hint-arrow{ animation:none !important; }
   .rsvp-name-input.rsvp-field-error{ animation:none !important; }
 }
 
@@ -1100,6 +1119,9 @@ html[data-variant="bride"] .variant-groom{ display:none; }
 
       <!-- INVITATION -->
       <div class="stage-block" id="block-invitation">
+        <div class="invite-scroll-hint" aria-hidden="true">
+          <svg class="invite-scroll-hint-arrow" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 15l-6-6-6 6"/></svg>
+        </div>
         <div class="eyebrow">TOGETHER WITH THEIR FAMILIES</div>
         <h1 class="hero-names-text variant-groom">Sandeep<span class="hero-amp">&amp;</span>Debapriya</h1>
         <h1 class="hero-names-text variant-bride">Debapriya<span class="hero-amp">&amp;</span>Sandeep</h1>
