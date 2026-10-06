@@ -477,6 +477,27 @@ html[data-variant="bride"] .variant-groom{ display:none; }
   margin-left:auto; margin-right:auto;
   line-height:1.55;
 }
+/* Moved here from the invitation card, and made more prominent — see
+   .hero-date above for the original, smaller version of this same
+   treatment. */
+.countdown-date{
+  margin-top:10px;
+  font-family:var(--font-display);
+  font-style:italic;
+  font-size:36px;
+  color:var(--gold-soft);
+  text-shadow:0 2px 10px rgba(0,0,0,.55);
+}
+.countdown-place{
+  font-size:15px;
+  letter-spacing:.05em;
+  color:rgba(251,247,238,.8);
+  text-shadow:0 1px 8px rgba(0,0,0,.5);
+  margin-top:32px;
+  max-width:320px;
+  margin-left:auto; margin-right:auto;
+  line-height:1.55;
+}
 
 /* ============================================================
    FIXED GANESHA STAGE — ONE overlay, ONE set of content blocks,
@@ -1083,14 +1104,13 @@ html[data-variant="bride"] .variant-groom{ display:none; }
         <h1 class="hero-names-text variant-groom">Sandeep<span class="hero-amp">&amp;</span>Debapriya</h1>
         <h1 class="hero-names-text variant-bride">Debapriya<span class="hero-amp">&amp;</span>Sandeep</h1>
         <p class="hero-sub">invite you to celebrate their new beginnings</p>
-        <div class="hero-date">25th November 2026</div>
-        <div class="hero-place">at Aayojan Banquets, Sector 1, Salt Lake, Kolkata</div>
       </div>
 
       <!-- COUNTDOWN -->
       <div class="stage-block" id="block-countdown">
         <div class="eyebrow">COUNTING DOWN TO</div>
         <h2 class="content-title">Our Wedding Day</h2>
+        <div class="countdown-date">25th November 2026</div>
         <div class="count-grid" role="timer" aria-live="off">
           <div class="count-cell"><div class="count-num" id="c-days">--</div><div class="count-label">DAYS</div></div>
           <div class="count-cell"><div class="count-num" id="c-hours">--</div><div class="count-label">HOURS</div></div>
@@ -1098,6 +1118,7 @@ html[data-variant="bride"] .variant-groom{ display:none; }
           <div class="count-cell"><div class="count-num" id="c-secs">--</div><div class="count-label">SECONDS</div></div>
         </div>
         <div class="count-today" id="count-today" style="display:none;">Today is the day ❤️</div>
+        <div class="countdown-place">at Aayojan Banquets, Sector 1, Salt Lake, Kolkata</div>
       </div>
 
       <!-- OUR STORY -->
